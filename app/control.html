@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Chien robot</title>
+<style>
+  body { font-family: sans-serif; text-align: center; margin: 0; padding: 16px; background:#111; color:#eee; }
+  button { font-size: 18px; padding: 14px; margin: 6px; border-radius: 10px; border:none; }
+  .pose { background:#2a6; color:#fff; width: 30%; }
+  #connect { background:#27e; color:#fff; width: 90%; }
+  #stop { background:#c33; color:#fff; width: 90%; }
+  #pad { width: 260px; height: 260px; margin: 16px auto; background:#222; border-radius:50%; position:relative; touch-action:none; }
+  #knob { width: 80px; height: 80px; background:#27e; border-radius:50%; position:absolute; left:90px; top:90px; }
+  #status { margin: 8px; font-size: 14px; color:#9c9; }
+</style>
+</head>
+<body>
+  <h2>🐕 Chien robot</h2>
+  <button id="connect">Connecter (Bluetooth)</button>
+  <div id="status">Déconnecté</div>
+  <div>
+    <button class="pose" data-p="P1">Penché avant</button>
+    <button class="pose" data-p="P2">Grand écart</button>
+    <button class="pose" data-p="P3">Équilibre</button>
+  </div>
+  <div id="pad"><div id="knob"></div></div>
+  <button id="stop">STOP</button>
+
+<script>
+const SERVICE = "0000ffe0-0000-1000-8000-00805f9b34fb";
+const CHAR_WRITE = "0000ffe1-0000-1000-8000-00805f9b34fb";
+let writeChar = null;
+
+async function send(str) {
+  if (!writeChar) return;
+  try { await writeChar.writeValue(new TextEncoder().encode(str + "\n")); } catch(e) {}
+}
+
+let bleDevice = null;
+
+document.getElementById("connect").onclick = async () => {
+  try {
+    const dev = await navigator.bluetooth.requestDevice({
+      filters: [{ name: "ChienRobot" }],
+      optionalServices: [SERVICE]
+    });
+    bleDevice = dev;
+    const server = await dev.gatt.connect();
+    const svc = await server.getPrimaryService(SERVICE);
+    writeChar = await svc.getCharacteristic(CHAR_WRITE);
+    document.getElementById("status").textContent = "Connecté à " + dev.name;
+    dev.addEventListener("gattserverdisconnected", () => {
+      writeChar = null; document.getElementById("status").textContent = "Déconnecté";
+    });
+  } catch(e) { document.getElementById("status").textContent = "Erreur: " + e; }
+};
+
+// Déconnexion propre quand on quitte/ferme la page : sinon l'ESP32 reste
+// "connecté" et n'émet plus, donc il ne réapparaît pas au prochain scan.
+function cleanDisconnect() {
+  if (bleDevice && bleDevice.gatt.connected) bleDevice.gatt.disconnect();
+}
+window.addEventListener("pagehide", cleanDisconnect);
+window.addEventListener("beforeunload", cleanDisconnect);
+
+document.querySelectorAll(".pose").forEach(b =>
+  b.onclick = () => send(b.dataset.p));
+document.getElementById("stop").onclick = () => { send("S"); resetKnob(); };
+
+// Joystick
+const pad = document.getElementById("pad"), knob = document.getElementById("knob");
+const R = 90; let active = false, lastSent = 0;
+function resetKnob(){ knob.style.left="90px"; knob.style.top="90px"; }
+function handle(e){
+  const t = e.touches ? e.touches[0] : e;
+  const r = pad.getBoundingClientRect();
+  let dx = t.clientX - r.left - 130, dy = t.clientY - r.top - 130;
+  const d = Math.hypot(dx, dy);
+  if (d > R){ dx = dx*R/d; dy = dy*R/d; }
+  knob.style.left = (90 + dx) + "px";
+  knob.style.top  = (90 + dy) + "px";
+  const x = Math.round(dx / R * 100);
+  const y = Math.round(-dy / R * 100);
+  const now = Date.now();
+  if (now - lastSent > 100){ send("D," + x + "," + y); lastSent = now; }
+}
+pad.addEventListener("touchstart", e => { active = true; handle(e); e.preventDefault(); });
+pad.addEventListener("touchmove",  e => { if (active) handle(e); e.preventDefault(); });
+pad.addEventListener("touchend",   () => { active = false; resetKnob(); send("D,0,0"); });
+pad.addEventListener("mousedown", e => { active = true; handle(e); });
+window.addEventListener("mousemove", e => { if (active) handle(e); });
+window.addEventListener("mouseup", () => { if(active){ active=false; resetKnob(); send("D,0,0"); } });
+</script>
+</body>
+</html>
