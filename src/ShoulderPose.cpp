@@ -1,10 +1,11 @@
 #include "ShoulderPose.h"
 
 // Poses (avG, avD, arG, arD) — à affiner selon le montage mécanique réel.
-static const int POSES[3][4] = {
+static const int POSES[4][4] = {
     {120, 60, 100, 80},  // P1 penché avant
     {150, 30, 150, 30},  // P2 grand écart
     { 90, 90,  90, 90},  // P3 équilibre
+    {  0,  0,   0,  0},  // P4 stop
 };
 static const float DEG_PER_SEC = 120.0f; // vitesse d'interpolation
 
@@ -17,12 +18,12 @@ void ShoulderPose::begin() {
         _target[i] = POSES[2][i];
         _servos[i].write((int)_current[i]);
     }
-    _pose = 3;
+    _pose = 4;
     _lastUpdate = millis();
 }
 
 void ShoulderPose::goToPose(int pose) {
-    if (pose < 1 || pose > 3) return;
+    if (pose < 1 || pose > 4) return;
     _pose = pose;
     for (int i = 0; i < 4; i++) _target[i] = POSES[pose - 1][i];
 }
