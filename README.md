@@ -6,8 +6,9 @@ Firmware ESP32 pour un chien robot : 4 servos d'épaules (3 poses) + 4 moteurs D
 ## Matériel
 
 - **ESP32** DevKit v1 (`esp32doit-devkit-v1`)
-- **4x servo MG996R** (épaules) — alim 5–6 V
+- **4x servo MG996R** (épaules) — alim **4,8–7,2 V** (5–6 V conseillé). ⚠️ **3,3 V insuffisant**, le servo ne bouge pas.
 - **4x moteur DC** pilotés par **2x DRV8833**
+- **1x DHT11** (température + humidité)
 - Batterie moteurs séparée de l'alim servos.
 
 ## Câblage
@@ -38,6 +39,18 @@ Firmware ESP32 pour un chien robot : 4 servos d'épaules (3 poses) + 4 moteurs D
 | AIN2   | 17   |
 | BIN1   | 18   |
 | BIN2   | 19   |
+
+### Capteur DHT11
+
+| Broche DHT11 | ESP32 |
+|--------------|-------|
+| Data         | GPIO 23 |
+| VCC          | 3,3 V ou 5 V |
+| GND          | GND |
+
+> Le DHT11 envoie température + humidité à l'app toutes les ~2 s (affichées dans
+> l'encart « Capteur »). L'encart passe en rouge au-delà de **45 °C** (seuil
+> réglable via `TEMP_ALERT` dans `app/control.html`).
 
 > ⚠️ **Alimentations** : servos en 5–6 V (fort courant), moteurs sur leur propre
 > batterie. **Toutes les masses (GND) doivent être communes** avec l'ESP32.

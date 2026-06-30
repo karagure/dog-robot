@@ -13,12 +13,21 @@
   #pad { width: 260px; height: 260px; margin: 16px auto; background:#222; border-radius:50%; position:relative; touch-action:none; }
   #knob { width: 80px; height: 80px; background:#27e; border-radius:50%; position:absolute; left:90px; top:90px; }
   #status { margin: 8px; font-size: 14px; color:#9c9; }
+  #env { margin: 12px auto; padding: 10px; width: 86%; background:#1c1c1c; border-radius:10px; font-size: 16px; }
+  #env.alert { background:#722; }
+  #envValues { font-size: 22px; font-weight: bold; }
+  #envAlert { font-size: 14px; color:#fbb; min-height: 16px; }
 </style>
 </head>
 <body>
   <h2>🐕 Chien robot</h2>
   <button id="connect">Connecter (Bluetooth)</button>
   <div id="status">Déconnecté</div>
+  <div id="env">
+    <div>Capteur</div>
+    <div id="envValues">🌡️ -- °C&nbsp;&nbsp;💧 -- %</div>
+    <div id="envAlert"></div>
+  </div>
   <div>
     <button class="pose" data-p="P1">Penché avant</button>
     <button class="pose" data-p="P2">Grand écart</button>
@@ -30,11 +39,33 @@
 <script>
 const SERVICE = "0000ffe0-0000-1000-8000-00805f9b34fb";
 const CHAR_WRITE = "0000ffe1-0000-1000-8000-00805f9b34fb";
+const CHAR_NOTIFY = "0000ffe2-0000-1000-8000-00805f9b34fb";
+const TEMP_ALERT = 45; // seuil de surchauffe en °C
 let writeChar = null;
 
 async function send(str) {
   if (!writeChar) return;
   try { await writeChar.writeValue(new TextEncoder().encode(str + "\n")); } catch(e) {}
+}
+
+// Réception des notifications BLE (ex. "ENV,24.0,45" = température, humidité).
+function onNotify(e) {
+  const msg = new TextDecoder().decode(e.target.value).trim();
+  if (msg.startsWith("ENV,")) {
+    const p = msg.split(",");
+    const t = parseFloat(p[1]), h = parseFloat(p[2]);
+    document.getElementById("envValues").innerHTML =
+      "🌡️ " + t.toFixed(1) + " °C&nbsp;&nbsp;💧 " + h.toFixed(0) + " %";
+    const box = document.getElementById("env");
+    const alert = document.getElementById("envAlert");
+    if (t >= TEMP_ALERT) {
+      box.classList.add("alert");
+      alert.textContent = "⚠️ Surchauffe (" + TEMP_ALERT + " °C)";
+    } else {
+      box.classList.remove("alert");
+      alert.textContent = "";
+    }
+  }
 }
 
 let bleDevice = null;
@@ -49,6 +80,11 @@ document.getElementById("connect").onclick = async () => {
     const server = await dev.gatt.connect();
     const svc = await server.getPrimaryService(SERVICE);
     writeChar = await svc.getCharacteristic(CHAR_WRITE);
+    try {
+      const notifyChar = await svc.getCharacteristic(CHAR_NOTIFY);
+      await notifyChar.startNotifications();
+      notifyChar.addEventListener("characteristicvaluechanged", onNotify);
+    } catch(e) { /* notify optionnel */ }
     document.getElementById("status").textContent = "Connecté à " + dev.name;
     dev.addEventListener("gattserverdisconnected", () => {
       writeChar = null; document.getElementById("status").textContent = "Déconnecté";

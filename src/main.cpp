@@ -3,15 +3,26 @@
 #include "MotorDrive.h"
 #include "ShoulderPose.h"
 #include "BleControl.h"
+#include "EnvSensor.h"
 
 static MotorDrive motors;
 static ShoulderPose shoulders;
 static BleControl ble;
+static EnvSensor env;
 
 static unsigned long lastDrive = 0;
 static const unsigned long DRIVE_TIMEOUT_MS = 500;
 
+// LED témoin (LED bleue intégrée du DevKit v1) : s'allume brièvement à chaque
+// commande reçue par Bluetooth, pour vérifier que la liaison fonctionne.
+static const int LED_PIN = 2;
+static unsigned long ledOffAt = 0;
+
 static void handleLine(const char* line) {
+    // Témoin : impulsion à chaque ligne reçue, valide ou non.
+    digitalWrite(LED_PIN, HIGH);
+    ledOffAt = millis() + 60;
+
     Command c = parseCommand(line);
     switch (c.type) {
         case CmdType::Drive: {
@@ -38,8 +49,11 @@ static void handleLine(const char* line) {
 
 void setup() {
     Serial.begin(115200);
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, LOW);
     motors.begin();
     shoulders.begin();
+    env.begin();
     ble.begin("ChienRobot", handleLine);
     lastDrive = millis();
 }
@@ -47,6 +61,13 @@ void setup() {
 void loop() {
     shoulders.update();
     unsigned long now = millis();
+
+    // Éteint la LED témoin après l'impulsion.
+    if (ledOffAt && now > ledOffAt) {
+        digitalWrite(LED_PIN, LOW);
+        ledOffAt = 0;
+    }
+
     if (now - lastDrive > DRIVE_TIMEOUT_MS) {
         motors.stop();
         lastDrive = now; // évite un stop répété inutile
@@ -54,5 +75,13 @@ void loop() {
     if (!ble.isConnected()) {
         motors.stop();
     }
+
+    // Lecture capteur DHT11 et envoi vers l'app (température + humidité).
+    if (env.update()) {
+        char buf[24];
+        snprintf(buf, sizeof(buf), "ENV,%.1f,%.0f", env.temperature(), env.humidity());
+        ble.notifyState(buf);
+    }
+
     delay(10);
 }
