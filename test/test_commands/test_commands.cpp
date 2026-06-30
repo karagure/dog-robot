@@ -38,6 +38,12 @@ void test_parse_pose() {
     TEST_ASSERT_EQUAL_INT(2, c.pose);
 }
 
+void test_parse_pose_p4() {
+    Command c = parseCommand("P4");
+    TEST_ASSERT_EQUAL(CmdType::Pose, c.type);
+    TEST_ASSERT_EQUAL_INT(4, c.pose);
+}
+
 void test_parse_stop() {
     Command c = parseCommand("S");
     TEST_ASSERT_EQUAL(CmdType::Stop, c.type);
@@ -58,6 +64,7 @@ int main() {
     RUN_TEST(test_mix_clamped);
     RUN_TEST(test_parse_drive);
     RUN_TEST(test_parse_pose);
+    RUN_TEST(test_parse_pose_p4);
     RUN_TEST(test_parse_stop);
     RUN_TEST(test_parse_invalid);
     return UNITY_END();

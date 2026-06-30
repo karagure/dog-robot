@@ -29,7 +29,7 @@ inline Command parseCommand(const char* line) {
     Command c{CmdType::None, 0, 0, 0};
     if (line == nullptr || line[0] == '\0') return c;
     if (line[0] == 'S') { c.type = CmdType::Stop; return c; }
-    if (line[0] == 'P' && line[1] >= '1' && line[1] <= '3') {
+    if (line[0] == 'P' && line[1] >= '1' && line[1] <= '4') {
         c.type = CmdType::Pose; c.pose = line[1] - '0'; return c;
     }
     if (line[0] == 'D' && line[1] == ',') {

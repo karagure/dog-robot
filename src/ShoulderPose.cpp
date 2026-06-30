@@ -5,7 +5,7 @@ static const int POSES[4][4] = {
     {120, 60, 100, 80},  // P1 penché avant
     {150, 30, 150, 30},  // P2 grand écart
     { 90, 90,  90, 90},  // P3 équilibre
-    {  0,  0,   0,  0},  // P4 stop
+    { 90, 90,  90, 90},  // P4 position par défaut (debout simple) — à ajuster
 };
 static const float DEG_PER_SEC = 120.0f; // vitesse d'interpolation
 
@@ -14,8 +14,8 @@ void ShoulderPose::begin() {
     for (int i = 0; i < 4; i++) {
         _servos[i].setPeriodHertz(50);
         _servos[i].attach(pins[i], 500, 2500);
-        _current[i] = POSES[2][i];
-        _target[i] = POSES[2][i];
+        _current[i] = POSES[3][i];
+        _target[i] = POSES[3][i];
         _servos[i].write((int)_current[i]);
     }
     _pose = 4;
