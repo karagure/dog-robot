@@ -49,12 +49,18 @@ static void handleLine(const char* line) {
 
 void setup() {
     Serial.begin(115200);
+    delay(200);
+    Serial.println("\n[BOOT] demarrage...");
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, LOW);
     motors.begin();
+    Serial.println("[BOOT] moteurs OK");
     shoulders.begin();
+    Serial.println("[BOOT] servos OK");
     env.begin();
+    Serial.println("[BOOT] DHT11 OK");
     ble.begin("ChienRobot", handleLine);
+    Serial.println("[BOOT] BLE en emission sous 'ChienRobot' - PRET");
     lastDrive = millis();
 }
 
